@@ -1,7 +1,7 @@
 import type React from 'react';
 import { useEffect } from 'react';
 
-interface OpenPayWrapperProps {
+export interface OpenPayWrapperProps {
 	merchantId: string;
 	apiKey: string;
 	sandboxMode: boolean;
