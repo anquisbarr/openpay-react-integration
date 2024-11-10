@@ -1,36 +1,62 @@
-# OpenPay React Integration
+# OpenPay React
 
-A React component and TypeScript types for integrating OpenPay's anti-fraud system.
+React integration for OpenPay payment processing.
 
 ## Installation
 
 ```bash
-npm install openpay-react-integration
+npm install openpay-react
+# or
+yarn add openpay-react
+# or
+bun add openpay-react
 ```
 
 ## Usage
 
-```tsx
-import React from 'react';
-import { OpenPayWrapper } from 'openpay-react-integration';
+```typescript
+import { createOpenPay } from 'openpay-react';
 
-const App = () => {
-  const [deviceSessionId, setDeviceSessionId] = React.useState('');
+const openPay = createOpenPay({
+  merchantId: 'YOUR_MERCHANT_ID',
+  publicKey: 'YOUR_PUBLIC_KEY',
+  isSandbox: true
+});
+
+// Form example
+const PaymentForm = () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      const form = e.currentTarget as HTMLFormElement;
+      const token = await openPay.createTokenFromForm(form);
+      console.log('Token:', token);
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
 
   return (
-    <OpenPayWrapper 
-      merchantId={process.env.REACT_APP_OPENPAY_MERCHANT_ID!} 
-      apiKey={process.env.REACT_APP_OPENPAY_PUBLIC_KEY!}
-      sandboxMode={true}
-      setDeviceSessionId={setDeviceSessionId}
-    >
-      <form id="payment-form">
-        {/* Your custom form fields here */}
-        <input type="hidden" id="deviceIdHiddenFieldName" value={deviceSessionId} />
-      </form>
-    </OpenPayWrapper>
+    <form id="payment-form" onSubmit={handleSubmit}>
+      <input
+        data-openpay-card="card_number"
+        placeholder="Card Number"
+      />
+      {/* Add other fields */}
+    </form>
   );
 };
-
-export default App;
 ```
+
+## Development
+
+To build the library:
+
+```bash
+npm run build
+```
+
+## License
+
+MIT
