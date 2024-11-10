@@ -6,11 +6,11 @@ import type {
 	OpenPayConfig,
 	OpenPayError,
 	Token,
-} from './types/openpay';
+} from "./types/openpay";
 
 export class OpenPayClient {
 	private initialized = false;
-	private deviceSessionId = '';
+	private deviceSessionId = "";
 
 	constructor(private config: OpenPayConfig) {
 		this.initialize();
@@ -21,14 +21,14 @@ export class OpenPayClient {
 			await this.loadScripts();
 
 			if (!window.OpenPay) {
-				throw new Error('OpenPay failed to initialize');
+				throw new Error("OpenPay failed to initialize");
 			}
 
 			window.OpenPay.setId(this.config.merchantId);
 			window.OpenPay.setApiKey(this.config.publicKey);
 			window.OpenPay.setSandboxMode(this.config.isSandbox);
 
-			this.deviceSessionId = window.OpenPay.deviceData.setup('openpay-payment-form');
+			this.deviceSessionId = window.OpenPay.deviceData.setup("openpay-payment-form");
 			this.initialized = true;
 		} catch (error) {
 			throw new Error(`OpenPay initialization failed: ${error}`);
@@ -37,8 +37,8 @@ export class OpenPayClient {
 
 	private async loadScripts(): Promise<void> {
 		const OPENPAY_SCRIPTS = [
-			'https://js.openpay.pe/openpay.v1.min.js',
-			'https://js.openpay.pe/openpay-data.v1.min.js',
+			"https://js.openpay.pe/openpay.v1.min.js",
+			"https://js.openpay.pe/openpay-data.v1.min.js",
 		];
 
 		await Promise.all(OPENPAY_SCRIPTS.map((src) => this.loadScript(src)));
@@ -51,7 +51,7 @@ export class OpenPayClient {
 				return;
 			}
 
-			const script = document.createElement('script');
+			const script = document.createElement("script");
 			script.src = src;
 			script.async = true;
 			script.onload = () => resolve();
@@ -62,7 +62,7 @@ export class OpenPayClient {
 
 	private checkInitialization(): void {
 		if (!this.initialized || !window.OpenPay) {
-			throw new Error('OpenPay not initialized');
+			throw new Error("OpenPay not initialized");
 		}
 	}
 
@@ -108,53 +108,53 @@ export class OpenPayClient {
 			): CardFieldStatus => {
 				this.checkInitialization();
 				switch (fieldName) {
-					case 'card_number':
+					case "card_number":
 						return {
 							isValid: this.card.validateNumber(value),
 							cardType: this.card.getType(value),
 							message: this.card.validateNumber(value)
 								? `Valid ${this.card.getType(value)} card`
 								: value.length > 0
-									? 'Invalid card number'
-									: '',
+									? "Invalid card number"
+									: "",
 							isDirty: true,
 							value,
 						};
-					case 'cvv2':
+					case "cvv2":
 						return {
 							isValid: this.card.validateCVC(value, cardNumber),
 							cardType: cardNumber ? this.card.getType(cardNumber) : undefined,
 							message: this.card.validateCVC(value, cardNumber)
-								? 'Valid CVV'
+								? "Valid CVV"
 								: value.length > 0
-									? `Invalid CVV (${cardNumber && this.card.getType(cardNumber) === 'american_express' ? '4' : '3'} digits required)`
-									: '',
+									? `Invalid CVV (${cardNumber && this.card.getType(cardNumber) === "american_express" ? "4" : "3"} digits required)`
+									: "",
 							isDirty: true,
 							value,
 						};
-					case 'holder_name':
+					case "holder_name":
 						return {
 							isValid: this.card.validateHolderName(value),
 							message: this.card.validateHolderName(value)
-								? 'Valid name'
+								? "Valid name"
 								: value.length > 0
-									? 'Name must contain only letters and spaces (min 3 characters)'
-									: '',
+									? "Name must contain only letters and spaces (min 3 characters)"
+									: "",
 							isDirty: true,
 							value,
 						};
-					case 'expiration_month':
-					case 'expiration_year': {
-						const month = fieldName === 'expiration_month' ? value : cardNumber || '';
-						const year = fieldName === 'expiration_year' ? value : cardNumber || '';
+					case "expiration_month":
+					case "expiration_year": {
+						const month = fieldName === "expiration_month" ? value : cardNumber || "";
+						const year = fieldName === "expiration_year" ? value : cardNumber || "";
 						const isValidExpiry = this.card.validateExpiry(month, year);
 						return {
 							isValid: isValidExpiry,
 							message: isValidExpiry
-								? 'Valid expiration date'
+								? "Valid expiration date"
 								: month.length > 0 && year.length > 0
-									? 'Invalid expiration date'
-									: '',
+									? "Invalid expiration date"
+									: "",
 							isDirty: true,
 							value,
 						};
@@ -162,7 +162,7 @@ export class OpenPayClient {
 					default:
 						return {
 							isValid: false,
-							message: 'Invalid field',
+							message: "Invalid field",
 							isDirty: true,
 							value,
 						};
@@ -243,7 +243,7 @@ export class OpenPayClient {
 			script.remove();
 		}
 		this.initialized = false;
-		this.deviceSessionId = '';
+		this.deviceSessionId = "";
 	}
 }
 

@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 /**
  * Regular expressions for card validation
@@ -23,13 +23,13 @@ export type CardPatternType = keyof typeof CARD_PATTERNS;
  */
 export const addressSchema = z
 	.object({
-		city: z.string().min(1, 'City is required'),
-		country_code: z.string().length(2, 'Country code must be 2 characters'),
-		postal_code: z.string().min(1, 'Postal code is required'),
-		line1: z.string().min(1, 'Address line 1 is required'),
+		city: z.string().min(1, "City is required"),
+		country_code: z.string().length(2, "Country code must be 2 characters"),
+		postal_code: z.string().min(1, "Postal code is required"),
+		line1: z.string().min(1, "Address line 1 is required"),
 		line2: z.string().optional(),
 		line3: z.string().optional(),
-		state: z.string().min(1, 'State is required'),
+		state: z.string().min(1, "State is required"),
 	})
 	.strict();
 
@@ -40,60 +40,60 @@ export const cardSchema = z
 	.object({
 		card_number: z
 			.string()
-			.min(13, 'Card number must be at least 13 digits')
-			.max(19, 'Card number must not exceed 19 digits')
+			.min(13, "Card number must be at least 13 digits")
+			.max(19, "Card number must not exceed 19 digits")
 			.refine((val) => {
-				const number = val.replace(/\s+/g, '');
+				const number = val.replace(/\s+/g, "");
 				return Object.values(CARD_PATTERNS).some((pattern) => pattern.test(number));
-			}, 'Invalid card number format'),
+			}, "Invalid card number format"),
 
 		holder_name: z
 			.string()
-			.min(3, 'Holder name must be at least 3 characters')
-			.max(100, 'Holder name must not exceed 100 characters')
-			.regex(/^[a-zA-Z\s]+$/, 'Holder name must contain only letters and spaces'),
+			.min(3, "Holder name must be at least 3 characters")
+			.max(100, "Holder name must not exceed 100 characters")
+			.regex(/^[a-zA-Z\s]+$/, "Holder name must contain only letters and spaces"),
 
 		expiration_year: z
 			.string()
-			.length(2, 'Expiration year must be 2 digits')
-			.regex(/^[0-9]{2}$/, 'Expiration year must be numeric')
+			.length(2, "Expiration year must be 2 digits")
+			.regex(/^[0-9]{2}$/, "Expiration year must be numeric")
 			.refine((val) => {
 				const year = Number.parseInt(val, 10);
 				const currentYear = new Date().getFullYear() % 100;
 				return year >= currentYear;
-			}, 'Expiration year must not be in the past'),
+			}, "Expiration year must not be in the past"),
 
 		expiration_month: z
 			.string()
-			.length(2, 'Expiration month must be 2 digits')
-			.regex(/^(0[1-9]|1[0-2])$/, 'Expiration month must be between 01 and 12'),
+			.length(2, "Expiration month must be 2 digits")
+			.regex(/^(0[1-9]|1[0-2])$/, "Expiration month must be between 01 and 12"),
 
 		cvv2: z
 			.string()
-			.min(3, 'CVV must be at least 3 digits')
-			.max(4, 'CVV must not exceed 4 digits')
-			.regex(/^\d+$/, 'CVV must be numeric'),
+			.min(3, "CVV must be at least 3 digits")
+			.max(4, "CVV must not exceed 4 digits")
+			.regex(/^\d+$/, "CVV must be numeric"),
 
 		address: addressSchema.optional(),
 	})
 	.superRefine((data, ctx) => {
-		const cardNumber = data.card_number.replace(/\s+/g, '');
+		const cardNumber = data.card_number.replace(/\s+/g, "");
 		const cvvLength = data.cvv2.length;
 
 		if (CARD_PATTERNS.amex.test(cardNumber)) {
 			if (cvvLength !== 4) {
 				ctx.addIssue({
 					code: z.ZodIssueCode.custom,
-					path: ['cvv2'],
-					message: 'Invalid CVV length for American Express card',
+					path: ["cvv2"],
+					message: "Invalid CVV length for American Express card",
 				});
 			}
 		} else {
 			if (cvvLength !== 3) {
 				ctx.addIssue({
 					code: z.ZodIssueCode.custom,
-					path: ['cvv2'],
-					message: 'Invalid CVV length for card type',
+					path: ["cvv2"],
+					message: "Invalid CVV length for card type",
 				});
 			}
 		}
@@ -145,7 +145,7 @@ export const validators = {
 	 * Luhn Algorithm for card number validation
 	 */
 	luhnCheck: (cardNumber: string): boolean => {
-		const digits = cardNumber.replace(/\D/g, '');
+		const digits = cardNumber.replace(/\D/g, "");
 		let sum = 0;
 		let isEven = false;
 
@@ -186,13 +186,13 @@ export const validators = {
 	/**
 	 * Determine card type from number
 	 */
-	getCardType: (cardNumber: string): CardPatternType | 'unknown' => {
+	getCardType: (cardNumber: string): CardPatternType | "unknown" => {
 		for (const [type, pattern] of Object.entries(CARD_PATTERNS)) {
 			if (pattern.test(cardNumber)) {
 				return type as CardPatternType;
 			}
 		}
-		return 'unknown';
+		return "unknown";
 	},
 
 	/**
