@@ -1,63 +1,60 @@
 {
-  "compilerOptions": {
-    // Modern features & DOM support
-    "lib": ["ESNext", "DOM", "DOM.Iterable"],
-    "target": "ESNext",
-    "module": "ESNext",
-    "moduleDetection": "force",
-    "jsx": "react-jsx",
+	"compilerOptions": {
+		// Modern features & DOM support
+		"lib": ["ESNext", "DOM", "DOM.Iterable"],
+		"target": "ESNext",
+		"module": "ESNext",
+		"moduleDetection": "force",
+		"jsx": "react-jsx",
 
-    // Module resolution
-    "moduleResolution": "bundler",
-    "verbatimModuleSyntax": true,
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
+		// Module resolution
+		"moduleResolution": "bundler",
+		"verbatimModuleSyntax": true,
+		"resolveJsonModule": true,
+		"isolatedModules": true,
+		"esModuleInterop": true,
+		"allowSyntheticDefaultImports": true,
 
-    // Build and declaration options
-    "noEmit": false,
-    "declaration": true,
-    "declarationDir": "./dist/types",
-    "declarationMap": true,
-    "emitDeclarationOnly": true,
-    "sourceMap": true,
-    "outDir": "./dist",
+		// Build and declaration options
+		"noEmit": false,
+		"declaration": true,
+		"declarationDir": "./dist/types",
+		"declarationMap": true,
+		"emitDeclarationOnly": true,
+		"sourceMap": true,
+		"outDir": "./dist",
 
-    // Type checking
-    "strict": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "noFallthroughCasesInSwitch": true,
-    "noImplicitAny": true,
-    "noImplicitThis": true,
-    "noImplicitReturns": true,
-    "noUncheckedIndexedAccess": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+		// Type checking
+		"strict": true,
+		"skipLibCheck": true,
+		"forceConsistentCasingInFileNames": true,
+		"noFallthroughCasesInSwitch": true,
+		"noImplicitAny": true,
+		"noImplicitThis": true,
+		"noImplicitReturns": true,
+		"noUncheckedIndexedAccess": true,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
 
-    // Path handling
-    "baseUrl": ".",
-    "rootDir": "src",
-    "paths": {
-      "@/*": ["src/*"]
-    },
+		// Path handling
+		"baseUrl": ".",
+		"rootDir": "src",
+		"paths": {
+			"@/*": ["src/*"]
+		},
 
-    // Type definitions
-    "typeRoots": ["./node_modules/@types", "./src/types"]
-  },
-  "include": [
-    "src/**/*.ts",
-    "src/**/*.tsx"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "src/dev",
-    "src/dev/**/*",
-    "example",
-    "**/*.test.ts",
-    "**/*.test.tsx",
-    "**/__tests__/**"
-  ]
+		// Type definitions
+		"typeRoots": ["./node_modules/@types", "./src/types"]
+	},
+	"include": ["src/**/*.ts", "src/**/*.tsx"],
+	"exclude": [
+		"node_modules",
+		"dist",
+		"src/dev",
+		"src/dev/**/*",
+		"example",
+		"**/*.test.ts",
+		"**/*.test.tsx",
+		"**/__tests__/**"
+	]
 }

@@ -1,5 +1,5 @@
-import type { z } from 'zod';
-import type { addressSchema, cardSchema, tokenSchema } from '../utils/validator';
+import type { z } from "zod";
+import type { addressSchema, cardSchema, tokenSchema } from "../utils/validator";
 
 /**
  * OpenPay Configuration
@@ -174,14 +174,14 @@ export interface UseOpenPayResult {
  * Supported Card Types
  */
 export type CardType =
-	| 'visa'
-	| 'mastercard'
-	| 'american_express'
-	| 'diners_club'
-	| 'discover'
-	| 'visa_electron'
-	| 'maestro'
-	| 'unknown';
+	| "visa"
+	| "mastercard"
+	| "american_express"
+	| "diners_club"
+	| "discover"
+	| "visa_electron"
+	| "maestro"
+	| "unknown";
 
 /**
  * Field Status Record Type

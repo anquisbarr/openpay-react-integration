@@ -1,6 +1,6 @@
-import type { OpenPayClient } from '@/openpay-client';
-import type { Card } from '@/types/openpay';
-import { useEffect, useState } from 'react';
+import type { OpenPayClient } from "@/openpay-client";
+import type { Card } from "@/types/openpay";
+import { useEffect, useState } from "react";
 
 export const useOpenPay = (client: OpenPayClient) => {
 	const [error, setError] = useState<Error | null>(null);

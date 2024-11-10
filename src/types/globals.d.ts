@@ -1,4 +1,4 @@
-import type { OpenPayInstance } from './openpay';
+import type { OpenPayInstance } from "./openpay";
 
 declare global {
 	interface Window {

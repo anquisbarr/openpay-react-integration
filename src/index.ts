@@ -1,16 +1,16 @@
-export { createOpenPay } from './openpay-client';
-export { OpenPayClient } from './openpay-client';
+export { createOpenPay } from "./openpay-client";
+export { OpenPayClient } from "./openpay-client";
 
 export const getEnvironment = () => ({
-	isDevelopment: process.env.NODE_ENV === 'development',
-	isBun: typeof process !== 'undefined' && process.versions && process.versions.bun,
-	isNode: typeof process !== 'undefined' && process.versions && process.versions.node,
+	isDevelopment: process.env.NODE_ENV === "development",
+	isBun: typeof process !== "undefined" && process.versions && process.versions.bun,
+	isNode: typeof process !== "undefined" && process.versions && process.versions.node,
 });
 
 export const DEV = {
 	testConfig: {
-		merchantId: 'test-merchant-id',
-		publicKey: 'test-public-key',
+		merchantId: "test-merchant-id",
+		publicKey: "test-public-key",
 		isSandbox: true,
 	},
 	validateConfig: (config: unknown) => {
@@ -49,4 +49,4 @@ export type {
 	UseOpenPayResult,
 	CardFieldStatus,
 	FieldStatusRecord,
-} from './types/openpay';
+} from "./types/openpay";
