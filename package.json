@@ -1,33 +1,75 @@
 {
   "name": "openpay-react-integration",
-  "version": "1.0.3",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "files": [
-    "dist/*.js",
-    "dist/*.d.ts"
-  ],
+  "version": "2.0.1",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": ["dist/index.js", "dist/index.cjs", "dist/index.d.ts", "README.md", "LICENSE"],
   "scripts": {
-    "build": "bun build --target=node ./index.ts --outdir=dist && npm run build:declaration",
-    "build:declaration": "tsc --emitDeclarationOnly --project tsconfig.json",
-    "lint": "bunx @biomejs/biome lint ./src",
-    "format": "bunx @biomejs/biome format --write ./src",
-    "postbuild": "rimraf tsconfig.tsbuildinfo"
-  },
-  "dependencies": {
-    "react": "^18.0.0"
-  },
-  "devDependencies": {
-    "@types/react": "^18.0.0",
-    "@types/bun": "latest",
-    "typescript": "^5.0.0",
-    "rimraf": "^5.0.5",
-    "@biomejs/biome": "^1.8.3"
+    "clean": "rm -rf dist",
+    "build": "NODE_ENV=production tsup",
+    "prepublishOnly": "npm run clean && npm run typecheck && NODE_ENV=production npm run build",
+    "dev": "NODE_ENV=development tsup --watch",
+    "format": "biome format . --write",
+    "lint": "biome check .",
+    "lint:fix": "biome check . --write",
+    "typecheck": "tsc --noEmit",
+    "test:build": "npm pack --dry-run"
   },
   "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": false
+    },
+    "react-dom": {
+      "optional": false
+    }
+  },
+  "dependencies": {
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.9.4",
+    "@types/node": "^22.9.0",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
     "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "tsup": "^8.0.0",
     "typescript": "^5.0.0"
   },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "keywords": [
+    "openpay",
+    "react",
+    "payments",
+    "typescript",
+    "credit-card",
+    "payment-processing",
+    "react-component"
+  ],
   "author": "bill.i",
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anquisbarr/openpay-react-integration"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
 }

@@ -1,0 +1,84 @@
+# Source
+src/
+example/
+tests/
+
+# Development files
+dev.ts
+playground.tsx
+*.test.ts
+*.test.tsx
+__tests__/
+__mocks__/
+
+# Configuration
+.github/
+biome.json
+tsconfig.json
+tsup.config.ts
+vite.config.ts
+.npmrc
+.npmignore
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.sublime-*
+.vs
+*.code-workspace
+
+# Build configs
+tsup.config.ts
+vite.config.ts
+
+# Git
+.git/
+.github/
+
+# Development
+*.tsbuildinfo
+.tscache
+
+# Misc
+.DS_Store
+*.log
+coverage/
+node_modules/
+.cache/
+*.tgz
+
+# Source
+src/
+!dist/
+
+# Development
+src/dev/
+example/
+tests/
+*.test.*
+__tests__/
+
+# Config files
+.gitignore
+.npmrc
+.env*
+biome.json
+tsconfig.json
+tsup.config.ts
+vite.config.ts
+
+# Development files
+playground.*
+dev.*
+*.test.*
+*.spec.*
+
+# IDE
+.vscode/
+.idea/
+
+# Misc
+*.log
+coverage/
+.DS_Store
