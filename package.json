@@ -19,6 +19,7 @@
 		"build": "NODE_ENV=production tsup",
 		"prepublishOnly": "npm run clean && npm run typecheck && NODE_ENV=production npm run build",
 		"dev": "NODE_ENV=development tsup --watch",
+		"playground": "vite src/dev",
 		"format": "biome format . --write",
 		"lint": "biome check .",
 		"lint:fix": "biome check . --write",
@@ -45,10 +46,12 @@
 		"@types/node": "^22.9.0",
 		"@types/react": "^18.0.0",
 		"@types/react-dom": "^18.0.0",
+		"@vitejs/plugin-react": "^4.2.1",
 		"react": "^18.0.0",
 		"react-dom": "^18.0.0",
 		"tsup": "^8.0.0",
-		"typescript": "^5.0.0"
+		"typescript": "^5.0.0",
+		"vite": "^5.0.0"
 	},
 	"engines": {
 		"node": ">=16.0.0"

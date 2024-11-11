@@ -26,6 +26,12 @@ yarn-error.log*
 .env.*
 !.env.example
 
+# Playground
+src/dev/dist
+src/dev/.env
+src/dev/.env.*
+!src/dev/.env.example
+
 # OS
 .DS_Store
 Thumbs.db
@@ -50,7 +56,3 @@ tsconfig.tsbuildinfo
 # Dependencies
 node_modules
 .npm
-
-# Development
-src/dev/
-*.tsbuildinfo

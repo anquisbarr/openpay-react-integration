@@ -44,17 +44,15 @@
 		},
 
 		// Type definitions
+		"types" : ["node"],
 		"typeRoots": ["./node_modules/@types", "./src/types"]
 	},
-	"include": ["src/**/*.ts", "src/**/*.tsx"],
-	"exclude": [
-		"node_modules",
-		"dist",
-		"src/dev",
-		"src/dev/**/*",
-		"example",
-		"**/*.test.ts",
-		"**/*.test.tsx",
-		"**/__tests__/**"
-	]
+	"include": [
+    "src/**/*.ts",
+    "src/**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }
