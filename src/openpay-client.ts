@@ -194,18 +194,18 @@ export class OpenPayClient {
 			): CardFieldStatus => {
 				// Try initialization but don't await
 				this.ensureInitialized();
-	
+
 				// Cache card type results
 				const getCardTypeSync = (number: string): CardType => {
 					try {
-						if (!this.initialized) return 'unknown';
+						if (!this.initialized) return "unknown";
 						const type = window.OpenPay.card.cardType(number);
-						return (type && typeof type === 'string') ? type as CardType : 'unknown';
+						return type && typeof type === "string" ? (type as CardType) : "unknown";
 					} catch {
-						return 'unknown';
+						return "unknown";
 					}
 				};
-	
+
 				switch (fieldName) {
 					case "card_number": {
 						const isValid = this.initialized && window.OpenPay.card.validateCardNumber(value);
