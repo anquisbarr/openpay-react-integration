@@ -94,7 +94,7 @@ export interface CardValidation {
 	validateExpiry: (month: string, year: string) => boolean;
 	cardType: (cardNumber: string) => string;
 	validateCard: (card: Card) => CardValidationResult;
-	getType?: (cardNumber: string) => CardType;
+	getType: (cardNumber: string) => CardType;
 }
 
 /**
