@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { type Card, type CardType, type OpenPayError, createOpenPay } from "../index";
-import { validators } from "../utils/validator";
+// import { createOpenPay, type Card, type CardType, type OpenPayError } from 'openpay-react-integration';
 
 interface CardFieldStatus {
 	isValid: boolean;
@@ -22,12 +22,13 @@ const DevelopmentPlayground: React.FC = () => {
 	const [testResults, setTestResults] = useState<Record<string, any>>({});
 	const [error, setError] = useState<OpenPayError | null>(null);
 	const [cardData, setCardData] = useState<Card>({
-		card_number: "4111111111111111",
-		holder_name: "John Doe",
-		expiration_year: "25",
-		expiration_month: "12",
-		cvv2: "123",
+		card_number: "",
+		holder_name: "",
+		expiration_year: "",
+		expiration_month: "",
+		cvv2: "",
 	});
+
 	const [cardStatus, setCardStatus] = useState<CardFieldStatus>({
 		isValid: false,
 		message: "",
@@ -35,43 +36,48 @@ const DevelopmentPlayground: React.FC = () => {
 	});
 
 	useEffect(() => {
-		if (cardData.card_number) {
-			const isValid = openPay.card.validateNumber(cardData.card_number);
-			const cardType = openPay.card.getType(cardData.card_number);
+		async function validateCard() {
+			if (cardData.card_number) {
+				const isValid = await openPay.card.validateNumber(cardData.card_number);
+				const cardType = await openPay.card.getType(cardData.card_number);
 
-			setCardStatus({
-				isValid,
-				cardType: cardType as CardType,
-				message: isValid ? `Valid ${cardType} card` : "Invalid card number",
-			});
-		} else {
-			setCardStatus({
-				isValid: false,
-				message: "",
-				cardType: undefined,
-			});
+				setCardStatus({
+					isValid,
+					cardType: cardType,
+					message: isValid ? `Valid ${cardType} card` : "Invalid card number",
+				});
+			} else {
+				setCardStatus({
+					isValid: false,
+					message: "",
+					cardType: undefined,
+				});
+			}
 		}
+
+		validateCard();
 	}, [cardData.card_number]);
 
-	const validateFields = () => {
-		const validation = validators.validateCard(cardData);
-		if (!validation.success) {
-			console.error("Validation Errors:", validation.error.format());
+	const validateFields = async () => {
+		const validation = await openPay.card.validateCard(cardData);
+		if (!validation.isValid) {
+			console.error("Validation Errors:", validation.errors);
 			setTestResults({
 				...testResults,
 				validation: {
 					success: false,
-					errors: validation.error.format(),
+					errors: validation.errors,
 				},
 			});
 			return false;
 		}
 
+		const cardType = await openPay.card.getType(cardData.card_number);
 		setTestResults({
 			...testResults,
 			validation: {
 				success: true,
-				cardType: openPay.card.getType(cardData.card_number),
+				cardType,
 			},
 		});
 		return true;
