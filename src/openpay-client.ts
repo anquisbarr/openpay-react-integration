@@ -7,6 +7,13 @@ import type {
 	OpenPayError,
 	Token,
 } from "./types/openpay";
+import { cardUtils } from "./utils/card";
+
+// Add specific error types
+export interface OpenPayFormError extends OpenPayError {
+	fieldName?: keyof Card;
+	missingAttributes?: string[];
+}
 
 export class OpenPayClient {
 	private initialized = false;
@@ -16,66 +23,82 @@ export class OpenPayClient {
 	private maxRetryDelay = 10000;
 	private retryTimeout?: number;
 	private healthCheckInterval?: number;
+	private retryAttempts = 0;
+
+	// Core functionality
+	public async initialize(): Promise<void> {
+		await this.initializeWithRetry();
+	}
+
+	private readonly OPENPAY_SCRIPTS = {
+		core: {
+			src: "https://js.openpay.pe/openpay.v1.min.js",
+		},
+		data: {
+			src: "https://js.openpay.pe/openpay-data.v1.min.js",
+		},
+	} as const;
+
+	private scriptCache: Map<
+		string,
+		{
+			status: "loading" | "loaded" | "error";
+			promise: Promise<void>;
+			retries: number;
+		}
+	> = new Map();
+
+	private readonly OPENPAY_FORM_FIELDS = {
+		CARD_NUMBER: "card_number",
+		HOLDER_NAME: "holder_name",
+		EXPIRATION_MONTH: "expiration_month",
+		EXPIRATION_YEAR: "expiration_year",
+		CVV2: "cvv2",
+	} as const;
 
 	constructor(private config: OpenPayConfig) {
 		this.initialize();
 		this.startHealthCheck();
 	}
 
-	private async initialize(): Promise<void> {
-		try {
-			await this.initializeWithRetry();
-		} catch (error) {
-			// Silent fail, will retry in background
-			console.debug("OpenPay initialization attempt failed, retrying in background...");
-			this.scheduleRetry();
-		}
-	}
-
 	private async initializeWithRetry(silent = false): Promise<void> {
-		let retryCount = 0;
-		let lastError: Error | null = null;
+		try {
+			await this.loadScripts();
 
-		while (retryCount < this.maxRetries) {
-			try {
-				await this.loadScripts();
-
-				if (!window.OpenPay) {
-					throw new Error("OpenPay not loaded");
-				}
-
-				// Configure OpenPay
-				window.OpenPay.setId(this.config.merchantId);
-				window.OpenPay.setApiKey(this.config.publicKey);
-				window.OpenPay.setSandboxMode(this.config.isSandbox);
-
-				// Try to setup device session
-				const sessionId = await this.setupDeviceSession();
-				if (!sessionId) {
-					throw new Error("Failed to setup device session");
-				}
-
-				this.deviceSessionId = sessionId;
-				this.initialized = true;
-				return;
-			} catch (error) {
-				lastError = error as Error;
-				retryCount++;
-
-				if (retryCount < this.maxRetries) {
-					// Exponential backoff with jitter
-					const jitter = Math.random() * 1000;
-					const delay = Math.min(
-						this.retryDelay * 2 ** (retryCount - 1) + jitter,
-						this.maxRetryDelay,
-					);
-					await new Promise((resolve) => setTimeout(resolve, delay));
-				}
+			// Verify OpenPay global object
+			if (typeof window.OpenPay === "undefined") {
+				throw new Error("OpenPay global object not initialized");
 			}
-		}
 
-		if (!silent) {
-			throw lastError;
+			// Configure OpenPay instance
+			window.OpenPay.setId(this.config.merchantId);
+			window.OpenPay.setApiKey(this.config.publicKey);
+			window.OpenPay.setSandboxMode(this.config.isSandbox);
+
+			// Setup device session
+			this.deviceSessionId = (await this.setupDeviceSession()) || "";
+
+			if (!this.deviceSessionId) {
+				throw new Error("Device session setup failed");
+			}
+
+			this.initialized = true;
+			this.retryAttempts = 0;
+		} catch (error) {
+			this.retryAttempts++;
+
+			if (!silent) {
+				console.warn(`OpenPay initialization attempt ${this.retryAttempts} failed:`, error);
+			}
+
+			if (this.retryAttempts < this.maxRetries) {
+				this.scheduleRetry();
+				return;
+			}
+
+			throw new Error(
+				`Failed to initialize after ${this.maxRetries} attempts: ${(error as Error).message}`,
+			);
 		}
 	}
 
@@ -114,9 +137,8 @@ export class OpenPayClient {
 			clearTimeout(this.retryTimeout);
 		}
 
-		this.retryTimeout = window.setTimeout(() => {
-			this.initialize();
-		}, this.retryDelay);
+		const delay = Math.min(this.retryDelay * 2 ** this.retryAttempts, this.maxRetryDelay);
+		this.retryTimeout = window.setTimeout(() => this.initializeWithRetry(true), delay);
 	}
 
 	private startHealthCheck(): void {
@@ -129,44 +151,144 @@ export class OpenPayClient {
 	}
 
 	private async loadScripts(): Promise<void> {
-		const OPENPAY_SCRIPTS = [
-			"https://js.openpay.pe/openpay.v1.min.js",
-			"https://js.openpay.pe/openpay-data.v1.min.js",
-		];
+		try {
+			const loadPromises = Object.entries(this.OPENPAY_SCRIPTS).map(([key, config]) => {
+				const cached = this.scriptCache.get(key);
+				if (cached?.status === "loaded") {
+					return cached.promise;
+				}
 
-		await Promise.all(OPENPAY_SCRIPTS.map((src) => this.loadScript(src)));
+				if (cached?.status === "loading") {
+					return cached.promise;
+				}
+
+				const promise = new Promise<void>((resolve, reject) => {
+					const script = document.createElement("script");
+					script.src = config.src;
+					script.async = true;
+					script.defer = true;
+
+					const timeoutId = setTimeout(() => {
+						handleError(new Error("Script load timeout"));
+					}, 10000);
+
+					const cleanup = () => {
+						script.removeEventListener("load", handleLoad);
+						script.removeEventListener("error", handleError);
+						clearTimeout(timeoutId);
+					};
+
+					const handleLoad = () => {
+						cleanup();
+						const cached = this.scriptCache.get(key);
+						if (!cached) {
+							throw new Error("Script cache entry not found");
+						}
+						this.scriptCache.set(key, {
+							...cached,
+							status: "loaded",
+						});
+						resolve();
+					};
+
+					const handleError = (_: Error | Event) => {
+						cleanup();
+						script.remove();
+						const cached = this.scriptCache.get(key);
+
+						if (cached && cached.retries < this.maxRetries) {
+							this.scriptCache.set(key, {
+								...cached,
+								status: "error",
+								retries: cached.retries + 1,
+							});
+							// Retry with exponential backoff
+							setTimeout(
+								() => {
+									this.loadScripts().then(resolve).catch(reject);
+								},
+								this.retryDelay * 2 ** cached.retries,
+							);
+						} else {
+							reject(new Error(`Failed to load ${key} script after ${this.maxRetries} attempts`));
+						}
+					};
+
+					script.addEventListener("load", handleLoad);
+					script.addEventListener("error", handleError);
+
+					document.head.appendChild(script);
+				});
+
+				this.scriptCache.set(key, {
+					status: "loading",
+					promise,
+					retries: 0,
+				});
+
+				return promise;
+			});
+
+			await Promise.all(loadPromises);
+		} catch (error) {
+			this.scriptCache.clear();
+			throw new Error(`Script loading failed: ${(error as Error).message}`);
+		}
 	}
 
-	private loadScript(src: string): Promise<void> {
-		return new Promise((resolve, reject) => {
-			if (document.querySelector(`script[src="${src}"]`)) {
-				resolve();
-				return;
-			}
-
-			const script = document.createElement("script");
-			script.src = src;
-			script.async = true;
-			script.onload = () => resolve();
-			script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
-			document.head.appendChild(script);
-		});
-	}
-
-	private async ensureInitialized(): Promise<void> {
+	public async ensureInitialized(): Promise<void> {
 		if (!this.initialized || !this.deviceSessionId) {
 			await this.initializeWithRetry(false);
 		}
+
+		// Verify initialization state
+		if (!window.OpenPay?.card?.validateCardNumber) {
+			this.initialized = false;
+			throw new Error("OpenPay methods not available");
+		}
+	}
+
+	public async getFormCardInformation(form: HTMLFormElement | string): Promise<Card> {
+		await this.ensureInitialized();
+
+		const formElement = typeof form === "string" ? document.getElementById(form) : form;
+		if (!formElement) {
+			throw new Error("Form element not found");
+		}
+
+		// Validate required attributes
+		const missingAttributes = this.validateFormAttributes(formElement);
+		if (missingAttributes.length > 0) {
+			const error = new Error("Missing required form attributes") as unknown as OpenPayFormError;
+			error.missingAttributes = missingAttributes;
+			throw error;
+		}
+
+		const formInfo = window.OpenPay.extractFormInfo(formElement as HTMLFormElement);
+
+		return {
+			card_number: String(formInfo.card_number || ""),
+			holder_name: String(formInfo.holder_name || ""),
+			expiration_year: String(formInfo.expiration_year || ""),
+			expiration_month: String(formInfo.expiration_month || ""),
+			cvv2: String(formInfo.cvv2 || ""),
+		} as const;
 	}
 
 	public async createToken(card: Card): Promise<Token> {
 		await this.ensureInitialized();
+
+		// Clean card data before sending to OpenPay
+		const cleanCard: Card = {
+			card_number: card.card_number.replace(/\s+/g, ""),
+			expiration_month: card.expiration_month.trim(),
+			expiration_year: card.expiration_year.trim(),
+			holder_name: card.holder_name.trim(),
+			cvv2: card.cvv2.trim()
+		};
+
 		return new Promise((resolve, reject) => {
-			window.OpenPay.token.create(
-				card,
-				(response: Token) => resolve(response),
-				(error: OpenPayError) => reject(error),
-			);
+			window.OpenPay.token.create(cleanCard, resolve, reject);
 		});
 	}
 
@@ -278,24 +400,41 @@ export class OpenPayClient {
 			},
 		},
 
-		validateNumber: async (cardNumber: string): Promise<boolean> => {
-			await this.ensureInitialized();
-			return window.OpenPay.card.validateCardNumber(cardNumber);
+		validateNumber: (number: string): boolean => {
+			const cleanNumber = number.replace(/\s+/g, "");
+			return window.OpenPay?.card?.validateCardNumber?.(cleanNumber) ?? false;
 		},
 
-		validateCVC: async (cvc: string, cardNumber?: string): Promise<boolean> => {
-			await this.ensureInitialized();
-			return window.OpenPay.card.validateCVC(cvc, cardNumber);
+		validateCVC: (cvc: string, cardType?: CardType): boolean => {
+			return window.OpenPay?.card?.validateCVC?.(cvc, cardType) ?? false;
 		},
 
-		validateExpiry: async (month: string, year: string): Promise<boolean> => {
-			await this.ensureInitialized();
-			return window.OpenPay.card.validateExpiry(month, year);
+		validateExpiryDate: (month: string, year: string): boolean => {
+			const expMonth = Number.parseInt(month, 10);
+			const expYear = Number.parseInt(year, 10);
+
+			if (Number.isNaN(expMonth) || Number.isNaN(expYear)) return false;
+
+			const currentDate = new Date();
+			const currentYear = currentDate.getFullYear() % 100;
+			const currentMonth = currentDate.getMonth() + 1;
+
+			// Check if year is valid (not in the past)
+			if (expYear < currentYear) return false;
+
+			// If it's the current year, check if month is valid
+			if (expYear === currentYear && expMonth < currentMonth) return false;
+
+			// Check if month is between 1 and 12
+			if (expMonth < 1 || expMonth > 12) return false;
+
+			return window.OpenPay?.card?.validateExpiry?.(month, year) ?? false;
 		},
 
-		getType: async (cardNumber: string): Promise<CardType> => {
-			await this.ensureInitialized();
-			return window.OpenPay.card.cardType(cardNumber) as CardType;
+		getCardType: (number: string): CardType | undefined => {
+			const cleanNumber = number.replace(/\s+/g, "");
+			const type = window.OpenPay?.card?.cardType?.(cleanNumber);
+			return type ? (type as CardType) : undefined;
 		},
 
 		validateHolderName: (name: string): boolean => {
@@ -316,14 +455,14 @@ export class OpenPayClient {
 				result.errors.cardNumber = true;
 			}
 
-			result.cardType = await this.card.getType(card.card_number);
+			result.cardType = await this.card.getCardType(card.card_number);
 
-			const isCvvValid = await this.card.validateCVC(card.cvv2, card.card_number);
+			const isCvvValid = await this.card.validateCVC(card.cvv2, result.cardType);
 			if (!isCvvValid) {
 				result.errors.cvv = true;
 			}
 
-			const isExpiryValid = await this.card.validateExpiry(
+			const isExpiryValid = await this.card.validateExpiryDate(
 				card.expiration_month,
 				card.expiration_year,
 			);
@@ -349,12 +488,78 @@ export class OpenPayClient {
 		if (this.healthCheckInterval) {
 			clearInterval(this.healthCheckInterval);
 		}
-		const scripts = document.querySelectorAll('script[src*="openpay.pe"]');
-		for (const script of scripts) {
-			script.remove();
+		for (const config of Object.values(this.OPENPAY_SCRIPTS)) {
+			const script = document.querySelector(`script[src="${config.src}"]`);
+			if (script) script.remove();
 		}
+		this.scriptCache.clear();
 		this.initialized = false;
 		this.deviceSessionId = "";
+	}
+
+	private validateFormAttributes(form: HTMLElement): string[] {
+		const requiredAttributes = Object.values(this.OPENPAY_FORM_FIELDS);
+		return requiredAttributes.filter(
+			(attr) => !form.querySelector(`[data-openpay-card="${attr}"]`),
+		);
+	}
+
+	public async createTokenWithValidation(cardData: Card): Promise<Token> {
+		try {
+			await this.ensureInitialized();
+
+			// Validate card data before creating token
+			const validationErrors = this.validateCardData(cardData);
+			if (validationErrors.length > 0) {
+				throw new Error(`Invalid card data: ${validationErrors.join(", ")}`);
+			}
+
+			return await this.createToken(cardData);
+		} catch (error: unknown) {
+			const err = error as OpenPayError;
+			console.error("Token creation failed:", {
+				message: err.message,
+				data: err.data,
+				status: err.status,
+			});
+			throw err;
+		}
+	}
+
+	private validateCardData(card: Card): string[] {
+		const errors: string[] = [];
+
+		if (!card.card_number?.replace(/\s/g, "").match(/^\d{15,16}$/)) {
+			errors.push("Invalid card number");
+		}
+
+		if (!card.holder_name?.trim()) {
+			errors.push("Invalid holder name");
+		}
+
+		const month = Number.parseInt(card.expiration_month);
+		if (Number.isNaN(month) || month < 1 || month > 12) {
+			errors.push("Invalid expiration month");
+		}
+
+		const year = Number.parseInt(card.expiration_year);
+		const currentYear = new Date().getFullYear() % 100;
+		if (Number.isNaN(year) || year < currentYear) {
+			errors.push("Invalid expiration year");
+		}
+
+		if (!card.cvv2?.match(/^\d{3,4}$/)) {
+			errors.push("Invalid CVV");
+		}
+
+		return errors;
+	}
+
+	public getUtils() {
+		return {
+			formatCardNumber: cardUtils.formatCardNumber,
+			formatExpiryDate: cardUtils.formatExpiryDate,
+		};
 	}
 }
 

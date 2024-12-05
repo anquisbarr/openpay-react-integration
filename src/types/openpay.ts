@@ -10,6 +10,10 @@ export interface OpenPayConfig {
 	isSandbox: boolean;
 	formId?: string;
 	deviceIdFieldName?: string;
+	options?: {
+		initRetries?: number;
+		loadTimeout?: number;
+	};
 }
 
 /**
