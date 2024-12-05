@@ -5,15 +5,11 @@ import type {
 	CardValidationResult,
 	OpenPayConfig,
 	OpenPayError,
+	OpenPayFormError,
 	Token,
 } from "./types/openpay";
 import { cardUtils } from "./utils/card";
 
-// Add specific error types
-export interface OpenPayFormError extends OpenPayError {
-	fieldName?: keyof Card;
-	missingAttributes?: string[];
-}
 
 export class OpenPayClient {
 	private initialized = false;
@@ -446,33 +442,38 @@ export class OpenPayClient {
 
 			const result: CardValidationResult = {
 				isValid: false,
-				errors: {},
+				fieldErrors: {
+					hasCardNumberError: false,
+					hasCvvError: false,
+					hasExpiryError: false,
+					hasHolderNameError: false
+				},
 				cardType: undefined,
 			};
 
 			const isCardNumberValid = await this.card.validateNumber(card.card_number);
 			if (!isCardNumberValid) {
-				result.errors.cardNumber = true;
+				result.fieldErrors.hasCardNumberError = true;
 			}
 
 			result.cardType = await this.card.getCardType(card.card_number);
 
 			const isCvvValid = await this.card.validateCVC(card.cvv2, result.cardType);
 			if (!isCvvValid) {
-				result.errors.cvv = true;
+				result.fieldErrors.hasCvvError = true;
 			}
 
 			const isExpiryValid = await this.card.validateExpiryDate(
 				card.expiration_month,
-				card.expiration_year,
+				card.expiration_year
 			);
 			if (!isExpiryValid) {
-				result.errors.expiry = true;
+				result.fieldErrors.hasExpiryError = true;
 			}
 
 			const isHolderNameValid = this.card.validateHolderName(card.holder_name);
 			if (!isHolderNameValid) {
-				result.errors.holderName = true;
+				result.fieldErrors.hasHolderNameError = true;
 			}
 
 			result.isValid = isCardNumberValid && isCvvValid && isExpiryValid && isHolderNameValid;
@@ -533,8 +534,8 @@ export class OpenPayClient {
 			errors.push("Invalid card number");
 		}
 
-		if (!card.holder_name?.trim()) {
-			errors.push("Invalid holder name");
+		if (card.holder_name && card.holder_name.trim().length < 3) {
+			errors.push("Name must be at least 3 characters");
 		}
 
 		const month = Number.parseInt(card.expiration_month);
@@ -555,14 +556,109 @@ export class OpenPayClient {
 		return errors;
 	}
 
-	public getUtils() {
-		return {
-			formatCardNumber: cardUtils.formatCardNumber,
-			formatExpiryDate: cardUtils.formatExpiryDate,
+	public validateCard(card: Partial<Card>): CardValidationResult {
+		const result: CardValidationResult = {
+			isValid: true,
+			fieldErrors: {
+				hasCardNumberError: false,
+				hasCvvError: false,
+				hasExpiryError: false,
+				hasHolderNameError: false
+			},
+			cardType: undefined
 		};
+
+		// Card number validation
+		if (card.card_number) {
+			const cleanNumber = card.card_number.replace(/\s+/g, "");
+			const isNumberValid = this.card.validateNumber(cleanNumber);
+			result.isValid = result.isValid && isNumberValid;
+			result.fieldErrors.hasCardNumberError = !isNumberValid;
+			result.cardType = this.card.getCardType(cleanNumber);
+		}
+
+		// CVV validation
+		if (card.cvv2) {
+			const isCvvValid = this.card.validateCVC(card.cvv2, result.cardType);
+			result.isValid = result.isValid && isCvvValid;
+			result.fieldErrors.hasCvvError = !isCvvValid;
+		}
+
+		// Expiry validation
+		if (card.expiration_month && card.expiration_year) {
+			const isExpiryValid = this.card.validateExpiryDate(
+				card.expiration_month,
+				card.expiration_year
+			);
+			result.isValid = result.isValid && isExpiryValid;
+			result.fieldErrors.hasExpiryError = !isExpiryValid;
+		}
+
+		// Holder name validation
+		if (card.holder_name) {
+			const isNameValid = card.holder_name.trim().length >= 3;
+			result.isValid = result.isValid && isNameValid;
+			result.fieldErrors.hasHolderNameError = !isNameValid;
+		}
+
+		return result;
 	}
 }
 
 export const createOpenPay = (config: OpenPayConfig): OpenPayClient => {
 	return new OpenPayClient(config);
+};
+
+export const openPayUtils = {
+	formatters: {
+		cardNumber: cardUtils.formatCardNumber,
+		expiryDate: cardUtils.formatExpiryDate,
+	},
+	validators: {
+		card: (card: Partial<Card>) => {
+			const errors: Record<keyof Card, string | undefined> = {
+				card_number: undefined,
+				holder_name: undefined,
+				expiration_month: undefined,
+				expiration_year: undefined,
+				cvv2: undefined,
+				address: undefined
+			};
+
+			if (card.card_number && !window.OpenPay?.card?.validateCardNumber?.(card.card_number.replace(/\s+/g, ""))) {
+				errors.card_number = "Invalid card number";
+			}
+
+			if (card.holder_name && card.holder_name.trim().length < 3) {
+				errors.holder_name = "Name must be at least 3 characters";
+			}
+
+			if (card.expiration_month && card.expiration_year) {
+				const month = Number.parseInt(card.expiration_month, 10);
+				const year = Number.parseInt(card.expiration_year, 10);
+				const currentDate = new Date();
+				const currentYear = currentDate.getFullYear() % 100;
+				const currentMonth = currentDate.getMonth() + 1;
+
+				if (Number.isNaN(month) || month < 1 || month > 12) {
+					errors.expiration_month = "Invalid month";
+				} else if (year < currentYear || (year === currentYear && month < currentMonth)) {
+					errors.expiration_month = "Card has expired";
+					errors.expiration_year = "Card has expired";
+				}
+			}
+
+			if (card.cvv2 && !/^\d{3,4}$/.test(card.cvv2)) {
+				errors.cvv2 = "Invalid CVV";
+			}
+
+			return {
+				isValid: !Object.values(errors).some(Boolean),
+				errors
+			};
+		},
+		cardType: (cardNumber: string): CardType | undefined => {
+			return window.OpenPay?.card?.cardType?.(cardNumber.replace(/\s+/g, "")) as CardType | undefined;
+		}
+	}
 };

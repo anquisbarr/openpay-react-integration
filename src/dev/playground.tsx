@@ -1,6 +1,6 @@
 import type React from "react";
 import { useState } from "react";
-import { createOpenPay } from "../openpay-client";
+import { createOpenPay, openPayUtils } from "../openpay-client";
 import type { Card, CardType } from "../types/openpay";
 
 interface CardFieldStatus {
@@ -40,21 +40,23 @@ const DevelopmentPlayground: React.FC = () => {
 	// Handle real-time card validation
 	const handleCardNumberChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
 		const { value } = e.target;
-		const formattedValue = openPay.getUtils().formatCardNumber(value);
+		const formattedValue = openPayUtils.formatters.cardNumber(value);
 		
 		setCardData(prev => ({
 			...prev,
 			card_number: formattedValue
 		}));
 
-		// Validate and get card type
-		const isValid = openPay.card.validateNumber(formattedValue);
-		const cardType = openPay.card.getCardType(formattedValue);
-
+		const validation = openPay.validateCard({ card_number: formattedValue });
+		
 		setCardStatus({
-			isValid,
-			cardType,
-			message: isValid ? `Valid ${cardType} card` : "Invalid card number"
+			isValid: !validation.fieldErrors.hasCardNumberError,
+			cardType: validation.cardType,
+			message: validation.fieldErrors.hasCardNumberError 
+				? "Invalid card number" 
+				: validation.cardType 
+					? `Valid ${validation.cardType} card` 
+					: ""
 		});
 	};
 
@@ -62,12 +64,15 @@ const DevelopmentPlayground: React.FC = () => {
 	const handlePayment = async (e: React.FormEvent) => {
 		e.preventDefault();
 		try {
-			const formData = await openPay.getFormCardInformation("payment-form");
-			const token = await openPay.createToken(formData);
+			// Validate all fields first
+			const validation = openPay.validateCard(cardData);
+			if (!validation.isValid) {
+				console.error("Card validation failed:", validation.fieldErrors);
+				return;
+			}
+
+			const token = await openPay.createToken(cardData);
 			console.log("Token created:", token);
-			
-			const deviceId = openPay.getDeviceSessionId();
-			console.log("Device ID:", deviceId);
 		} catch (error) {
 			console.error("Payment processing failed:", error);
 		}

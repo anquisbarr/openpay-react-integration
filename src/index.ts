@@ -1,5 +1,4 @@
-export { createOpenPay } from "./openpay-client";
-export { OpenPayClient } from "./openpay-client";
+export { OpenPayClient, createOpenPay } from "./openpay-client";
 
 export const getEnvironment = () => ({
 	isDevelopment: process.env.NODE_ENV === "development",
@@ -31,22 +30,7 @@ export const DEV = {
 };
 
 export type {
-	OpenPayConfig,
-	UseOpenPayOptions,
 	Address,
-	Card,
-	Token,
-	CardValidationResult,
-	OpenPayError,
-	CardValidation,
-	SuccessCallback,
-	ErrorCallback,
-	DeviceSession,
-	TokenOperations,
-	CardOperations,
-	OpenPayInstance,
-	CardType,
-	UseOpenPayResult,
-	CardFieldStatus,
-	FieldStatusRecord,
+	Card, CardFieldStatus, CardOperations, CardType, CardValidation, CardValidationResult, DeviceSession, ErrorCallback, FieldStatusRecord, OpenPayConfig, OpenPayError, OpenPayInstance, SuccessCallback, Token, TokenOperations, UseOpenPayOptions, UseOpenPayResult
 } from "./types/openpay";
+

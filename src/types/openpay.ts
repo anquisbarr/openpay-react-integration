@@ -16,6 +16,30 @@ export interface OpenPayConfig {
 	};
 }
 
+export interface OpenPayFormError extends OpenPayError {
+	fieldName?: keyof Card;
+	missingAttributes?: string[];
+}
+
+export interface IOpenPayErrorData {
+	message: string;
+	data: {
+		category: string;
+		description: string;
+		error_code: number;
+		http_code: number;
+		request_id: string;
+	};
+	status: number;
+}
+
+export const ErrorCodes = {
+	INITIALIZATION_FAILED: 1000,
+	VALIDATION_FAILED: 1001,
+	TOKEN_CREATION_FAILED: 1002,
+	SCRIPT_LOAD_FAILED: 1003,
+} as const;
+
 /**
  * Hook Options
  */
@@ -54,11 +78,11 @@ export interface CardFieldStatus {
  */
 export interface CardValidationResult {
 	isValid: boolean;
-	errors: {
-		cardNumber?: boolean;
-		cvv?: boolean;
-		expiry?: boolean;
-		holderName?: boolean;
+	fieldErrors: {
+		hasCardNumberError: boolean;
+		hasCvvError: boolean;
+		hasExpiryError: boolean;
+		hasHolderNameError: boolean;
 	};
 	cardType?: CardType;
 }
