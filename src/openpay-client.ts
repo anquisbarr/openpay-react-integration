@@ -1,15 +1,16 @@
-import type {
-	Card,
-	CardFieldStatus,
-	CardType,
-	CardValidationResult,
-	OpenPayConfig,
-	OpenPayError,
-	OpenPayFormError,
-	Token,
+import { createError, OpenPayErrorBuilder } from "./config/error-handler";
+import {
+	ErrorCodes,
+	type Card,
+	type CardFieldStatus,
+	type CardType,
+	type CardValidationResult,
+	type OpenPayConfig,
+	type OpenPayError,
+	type OpenPayFormError,
+	type Token,
 } from "./types/openpay";
 import { cardUtils } from "./utils/card";
-
 
 export class OpenPayClient {
 	private initialized = false;
@@ -21,7 +22,6 @@ export class OpenPayClient {
 	private healthCheckInterval?: number;
 	private retryAttempts = 0;
 
-	// Core functionality
 	public async initialize(): Promise<void> {
 		await this.initializeWithRetry();
 	}
@@ -147,88 +147,51 @@ export class OpenPayClient {
 	}
 
 	private async loadScripts(): Promise<void> {
-		try {
-			const loadPromises = Object.entries(this.OPENPAY_SCRIPTS).map(([key, config]) => {
-				const cached = this.scriptCache.get(key);
-				if (cached?.status === "loaded") {
-					return cached.promise;
-				}
+		const scriptLoader = {
+			preload(src: string) {
+				const link = document.createElement("link");
+				link.rel = "preload";
+				link.as = "script";
+				link.href = src;
+				document.head.appendChild(link);
+			},
 
-				if (cached?.status === "loading") {
-					return cached.promise;
-				}
-
-				const promise = new Promise<void>((resolve, reject) => {
+			load(src: string, timeout = 10000): Promise<void> {
+				return new Promise((resolve, reject) => {
 					const script = document.createElement("script");
-					script.src = config.src;
+					script.src = src;
 					script.async = true;
-					script.defer = true;
 
 					const timeoutId = setTimeout(() => {
-						handleError(new Error("Script load timeout"));
-					}, 10000);
+						reject(new OpenPayErrorBuilder("Script load timeout", ErrorCodes.SCRIPT_LOAD_FAILED));
+					}, timeout);
 
-					const cleanup = () => {
-						script.removeEventListener("load", handleLoad);
-						script.removeEventListener("error", handleError);
+					script.onload = () => {
 						clearTimeout(timeoutId);
-					};
-
-					const handleLoad = () => {
-						cleanup();
-						const cached = this.scriptCache.get(key);
-						if (!cached) {
-							throw new Error("Script cache entry not found");
-						}
-						this.scriptCache.set(key, {
-							...cached,
-							status: "loaded",
-						});
 						resolve();
 					};
 
-					const handleError = (_: Error | Event) => {
-						cleanup();
-						script.remove();
-						const cached = this.scriptCache.get(key);
-
-						if (cached && cached.retries < this.maxRetries) {
-							this.scriptCache.set(key, {
-								...cached,
-								status: "error",
-								retries: cached.retries + 1,
-							});
-							// Retry with exponential backoff
-							setTimeout(
-								() => {
-									this.loadScripts().then(resolve).catch(reject);
-								},
-								this.retryDelay * 2 ** cached.retries,
-							);
-						} else {
-							reject(new Error(`Failed to load ${key} script after ${this.maxRetries} attempts`));
-						}
+					script.onerror = () => {
+						clearTimeout(timeoutId);
+						reject(new OpenPayErrorBuilder("Script load failed", ErrorCodes.SCRIPT_LOAD_FAILED));
 					};
-
-					script.addEventListener("load", handleLoad);
-					script.addEventListener("error", handleError);
 
 					document.head.appendChild(script);
 				});
+			},
+		};
 
-				this.scriptCache.set(key, {
-					status: "loading",
-					promise,
-					retries: 0,
-				});
+		// Preload all scripts
+		for (const { src } of Object.values(this.OPENPAY_SCRIPTS)) {
+			scriptLoader.preload(src);
+		}
 
-				return promise;
-			});
-
-			await Promise.all(loadPromises);
+		// Load core script first, then data script
+		try {
+			await scriptLoader.load(this.OPENPAY_SCRIPTS.core.src);
+			await scriptLoader.load(this.OPENPAY_SCRIPTS.data.src);
 		} catch (error) {
-			this.scriptCache.clear();
-			throw new Error(`Script loading failed: ${(error as Error).message}`);
+			throw createError("SCRIPT_LOAD_FAILED", "Failed to load OpenPay scripts", error);
 		}
 	}
 
@@ -280,7 +243,7 @@ export class OpenPayClient {
 			expiration_month: card.expiration_month.trim(),
 			expiration_year: card.expiration_year.trim(),
 			holder_name: card.holder_name.trim(),
-			cvv2: card.cvv2.trim()
+			cvv2: card.cvv2.trim(),
 		};
 
 		return new Promise((resolve, reject) => {
@@ -446,7 +409,7 @@ export class OpenPayClient {
 					hasCardNumberError: false,
 					hasCvvError: false,
 					hasExpiryError: false,
-					hasHolderNameError: false
+					hasHolderNameError: false,
 				},
 				cardType: undefined,
 			};
@@ -465,7 +428,7 @@ export class OpenPayClient {
 
 			const isExpiryValid = await this.card.validateExpiryDate(
 				card.expiration_month,
-				card.expiration_year
+				card.expiration_year,
 			);
 			if (!isExpiryValid) {
 				result.fieldErrors.hasExpiryError = true;
@@ -563,9 +526,9 @@ export class OpenPayClient {
 				hasCardNumberError: false,
 				hasCvvError: false,
 				hasExpiryError: false,
-				hasHolderNameError: false
+				hasHolderNameError: false,
 			},
-			cardType: undefined
+			cardType: undefined,
 		};
 
 		// Card number validation
@@ -588,7 +551,7 @@ export class OpenPayClient {
 		if (card.expiration_month && card.expiration_year) {
 			const isExpiryValid = this.card.validateExpiryDate(
 				card.expiration_month,
-				card.expiration_year
+				card.expiration_year,
 			);
 			result.isValid = result.isValid && isExpiryValid;
 			result.fieldErrors.hasExpiryError = !isExpiryValid;
@@ -622,10 +585,13 @@ export const openPayUtils = {
 				expiration_month: undefined,
 				expiration_year: undefined,
 				cvv2: undefined,
-				address: undefined
+				address: undefined,
 			};
 
-			if (card.card_number && !window.OpenPay?.card?.validateCardNumber?.(card.card_number.replace(/\s+/g, ""))) {
+			if (
+				card.card_number &&
+				!window.OpenPay?.card?.validateCardNumber?.(card.card_number.replace(/\s+/g, ""))
+			) {
 				errors.card_number = "Invalid card number";
 			}
 
@@ -654,11 +620,13 @@ export const openPayUtils = {
 
 			return {
 				isValid: !Object.values(errors).some(Boolean),
-				errors
+				errors,
 			};
 		},
 		cardType: (cardNumber: string): CardType | undefined => {
-			return window.OpenPay?.card?.cardType?.(cardNumber.replace(/\s+/g, "")) as CardType | undefined;
-		}
-	}
+			return window.OpenPay?.card?.cardType?.(cardNumber.replace(/\s+/g, "")) as
+				| CardType
+				| undefined;
+		},
+	},
 };
